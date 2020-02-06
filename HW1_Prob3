@@ -1,0 +1,91 @@
+% MAE 5010 : HW1
+% Problem# 3
+clear all; clc;
+
+%% Problem parameters
+m = 20; % number of observations (= no. of equations)
+% m = 2000;
+Nx = 101; % number grid points in x direction
+Ny = 101; % number grid points in y direction
+n = Nx*Ny; % total number of grid points (= no. of unknowns)
+% total length in x and y direction in 1 (0<x<1; 0<y<1)
+dx = 1/(Nx-1); % length of each grid in x direction
+dy = 1/(Ny-1); % length of each grid in y direction
+
+%% Generate data 
+coord(:,1) = dx*rand([m,1]); % x coodrinates for Zi respective to their location grid (same as ai)
+coord(:,2) = dy*rand([m,1]); % x coodrinates for Zi respective to their location grid (same as bi)
+gr = [1:n-Nx-1]; gr4 = mod(gr,Nx); gr = gr(find(gr4~=0)); % finding all grid locations which can have possible observations
+l = randsample(gr,m);  % locations for Zi observations (in row major notation)
+l = sort(l); % sort the locations in ascending order for convenience
+
+% Calculating the absolute coordinate values of Zi's
+for i = 1:m
+    Rm = rem((l(i)-1),Nx);
+    Xaxis = Rm*dx;
+    Qt = floor((l(i)-1)/Nx);
+    Yaxis = Qt*dy;
+    % ab_coord: stores absolute coordinate values of Zi's 
+    ab_coord(i,1) = Xaxis + coord(i,1); % absolute x coordinate value 
+    ab_coord(i,2) = Yaxis + coord(i,2); % absolute y coordinate value
+end
+
+sig_sq = 0.1;
+noise = normrnd(0,sig_sq,[m,1]);
+Z = 2.*ab_coord(:,1) + 4.*ab_coord(:,2) + ab_coord(:,1).*ab_coord(:,2) + noise;
+
+% Generating the H matrix
+H = zeros(m,n);
+for i = 1:m
+    lt = l(i);
+    a = coord(i,1);
+    b = coord(i,2);
+    
+    for j = 1:n   
+        if j == lt
+            H(i,j) = (dx-a)/dx*(dy-b)/dy;
+        elseif j == lt+1
+            H(i,j) = a/dx*(dy-b)/dy;
+        elseif j == lt+Nx
+            H(i,j) = (dx-a)/dx*b/dy;
+        elseif j == lt+Nx+1
+            H(i,j) = a/dx*b/dy;
+        end        
+    end
+    
+end
+
+%% Solving the problem by (a)
+H_t = H'*inv(H*H');
+x1 = H_t*Z;
+
+%% Solving the problem by (b)
+[Q,R] = qr(H');
+Q1 = Q(:,1:min(m,n));
+R1 = R(1:min(m,n),:);
+y2 = inv(R1')*Z;
+x2 = Q1*y2;
+
+%% Solving the problem by (c)
+[U,S,V] = svd(H);
+y3 = pinv(S)*U'*Z;
+x3 = V*y3;
+
+%% Plotting results
+figure(1); clf; 
+X = reshape(x1,[Nx,Ny]);
+contour(X,'fill','on'); 
+axis equal; colorbar;
+title('LU decomposition solution');
+
+figure(2); clf;
+X = reshape(x2,[Nx,Ny]);
+contour(X,'fill','on'); 
+axis equal; colorbar;
+title('QR decomposition solution');
+
+figure(3); clf;
+X = reshape(x3,[Nx,Ny]);
+contour(X,'fill','on'); 
+axis equal; colorbar;
+title('SVD decomposition solution');
